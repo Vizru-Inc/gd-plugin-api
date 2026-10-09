@@ -1,0 +1,24 @@
+{
+  "name": "gd-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "fake-ambient": "node fake-ambient-server.mjs",
+    "check": "node --check server.mjs && node --check ambient-relay.mjs && node --check fake-ambient-server.mjs"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.4",
+    "socket.io-client": "2.5.0"
+  },
+  "devDependencies": {
+    "socket.io-v2": "npm:socket.io@2.5.0"
+  },
+  "version": "0.1.0",
+  "description": "GoodDoc API for the plugin: key validation (mock) and the ambient relay",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.28.0"
+}

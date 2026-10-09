@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+# vendor documents with credentials
+.private/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+
+# lockfiles are not committed (team choice)
+pnpm-lock.yaml
