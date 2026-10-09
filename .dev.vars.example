@@ -1,0 +1,10 @@
+# Local secrets for `pnpm dev` (wrangler dev). Copy to .dev.vars (gitignored).
+# In Cloudflare, set these with `wrangler secret put <NAME>` instead.
+
+# Subscription API Key from the ambient integration guide. SECRET.
+AMBIENT_SUBSCRIPTION_API_KEY=
+# Any long random string; signs session tokens. Use a different one in production.
+GD_TOKEN_SECRET=dev-only-secret
+
+# Override wrangler.jsonc vars locally if needed, e.g. the offline fake server:
+# AMBIENT_SERVER_URL=http://localhost:4100

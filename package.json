@@ -3,22 +3,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch server.mjs",
-    "start": "node server.mjs",
-    "fake-ambient": "node fake-ambient-server.mjs",
-    "check": "node --check server.mjs && node --check ambient-relay.mjs && node --check fake-ambient-server.mjs"
-  },
-  "dependencies": {
-    "socket.io": "^4.8.4",
-    "socket.io-client": "2.5.0"
+    "dev": "wrangler dev --port 4000",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "tail": "wrangler tail",
+    "fake-ambient": "node fake-ambient-server.mjs"
   },
   "devDependencies": {
-    "socket.io-v2": "npm:socket.io@2.5.0"
+    "@cloudflare/workers-types": "^5.20261009.1",
+    "socket.io-v2": "npm:socket.io@2.5.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.149.0"
   },
   "version": "0.1.0",
-  "description": "GoodDoc API for the plugin: key validation (mock) and the ambient relay",
+  "description": "GoodDoc API for the plugin (Cloudflare Worker): key validation (mock) and the ambient relay",
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@10.28.0"
+  "packageManager": "pnpm@10.28.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "sharp"
+    ]
+  }
 }

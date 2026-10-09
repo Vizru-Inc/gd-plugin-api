@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gd-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+
+  // One relay instance per ambient session (see src/relay.ts). SQLite-backed so it runs on the Free plan.
+  "durable_objects": {
+    "bindings": [{ "name": "AMBIENT_RELAY", "class_name": "AmbientRelay" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AmbientRelay"] }],
+
+  // Non-secret settings. Secrets (AMBIENT_SUBSCRIPTION_API_KEY, GD_TOKEN_SECRET) are set with
+  // `wrangler secret put`, or in .dev.vars for local development.
+  "vars": {
+    "AMBIENT_SERVER_URL": "https://roverv2-fastapi.vizru-ras.com",
+    // Host-page origins allowed to use the mock gd_test_ keys. Add your vendors' / demo host's origins.
+    "ALLOWED_ORIGINS": "http://localhost:*,http://127.0.0.1:*"
+  }
+}
