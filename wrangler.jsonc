@@ -15,9 +15,11 @@
   // `wrangler secret put`, or in .dev.vars for local development.
   "vars": {
     "AMBIENT_SERVER_URL": "https://roverv2-fastapi.vizru-ras.com",
-    // Live voice agent (Eva): POST {VOICE_AGENT_BASE_URL}/workflow.trigger/{VOICE_AGENT_WORKFLOW}
-    "VOICE_AGENT_BASE_URL": "https://innov-dev.beta.injomo.com",
+    // Workflow server. Live voice agent (Eva): POST {WORKFLOW_BASE_URL}/workflow.trigger/{VOICE_AGENT_WORKFLOW}
+    "WORKFLOW_BASE_URL": "https://innov-dev.beta.injomo.com",
     "VOICE_AGENT_WORKFLOW": "pluginintegrationliveagent6ac91be94680e",
+    // Every panel event is forwarded here as form fields: event, payload (JSON), domain
+    "EVENTS_WORKFLOW": "marketplaceeventreciever6acb1c5507242",
     // Host-page origins allowed to use the mock gd_test_ keys. Add your vendors' / demo host's origins.
     "ALLOWED_ORIGINS": "http://localhost:*,http://127.0.0.1:*"
   }

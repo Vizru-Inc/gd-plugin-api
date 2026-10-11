@@ -21,10 +21,10 @@ export async function startVoiceSession(
   env: Env,
   body: Record<string, unknown>,
 ): Promise<{ status: number; body: VoiceSession | { error: string } }> {
-  const base = env.VOICE_AGENT_BASE_URL?.replace(/\/$/, '');
+  const base = env.WORKFLOW_BASE_URL?.replace(/\/$/, '');
   const workflow = env.VOICE_AGENT_WORKFLOW;
   if (!base || !workflow) {
-    return { status: 500, body: { error: 'Server misconfigured: VOICE_AGENT_BASE_URL / VOICE_AGENT_WORKFLOW are not set' } };
+    return { status: 500, body: { error: 'Server misconfigured: WORKFLOW_BASE_URL / VOICE_AGENT_WORKFLOW are not set' } };
   }
 
   const headers: Record<string, string> = {

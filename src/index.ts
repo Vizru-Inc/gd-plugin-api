@@ -5,12 +5,15 @@
  *   POST /v1/sessions/verify { sessionToken }  panel → who the token was issued to
  *   POST /v1/voice/session   { sessionToken, agentPrompt, admissionId, patientName, isInpatient }
  *                                              panel → starts an Eva voice session (proxies the workflow trigger, see voice.ts)
+ *   POST /v1/events          { sessionToken, event, payload }
+ *                                              panel → every panel event, forwarded to the event receiver workflow (see events.ts)
  *   GET  /health
  *   GET  /ambient  (WebSocket)                 panel → ambient relay (Durable Object, see relay.ts)
  */
 import type { Env } from './env';
 import { lookupKey } from './keys';
 import { issueToken, readToken } from './tokens';
+import { eventsConfigured, forwardEvent } from './events';
 import { startVoiceSession } from './voice';
 
 export { AmbientRelay } from './relay';
@@ -56,7 +59,7 @@ async function readJson(req: Request): Promise<Record<string, unknown> | null> {
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     const route = `${req.method} ${url.pathname}`;
 
@@ -106,6 +109,18 @@ export default {
       const claims = body ? await readToken(env.GD_TOKEN_SECRET, body.sessionToken) : null;
       if (!claims) return json(401, { valid: false, error: 'Session token is invalid or expired' }, req);
       return json(200, { valid: true, tenantId: claims.tenantId, origin: claims.origin, features: claims.features }, req);
+    }
+
+    if (route === 'POST /v1/events') {
+      const body = await readJson(req);
+      const claims = body ? await readToken(env.GD_TOKEN_SECRET, body.sessionToken) : null;
+      if (!body || !claims) return json(401, { error: 'Session token is invalid or expired' }, req);
+      const event = typeof body.event === 'string' ? body.event.trim().slice(0, 200) : '';
+      if (!event) return json(400, { error: 'event is required' }, req);
+      if (!eventsConfigured(env)) return json(500, { error: 'Server misconfigured: WORKFLOW_BASE_URL / EVENTS_WORKFLOW are not set' }, req);
+      // Answer straight away; delivery to the receiver finishes in the background.
+      ctx.waitUntil(forwardEvent(env, event, body.payload, claims.origin).catch((err) => console.error(`event ${event} failed`, err)));
+      return json(202, { accepted: true }, req);
     }
 
     if (route === 'POST /v1/voice/session') {
