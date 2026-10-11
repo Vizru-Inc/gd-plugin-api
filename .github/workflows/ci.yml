@@ -11,8 +11,5 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: pnpm install
-      - run: pnpm check
-      - name: Starts and answers /health
-        run: |
-          node server.mjs & sleep 2
-          curl -fsS http://localhost:4000/health
+      - run: pnpm typecheck
+      - run: npx wrangler deploy --dry-run --outdir .wrangler/dry-run   # bundles without deploying

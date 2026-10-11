@@ -8,3 +8,9 @@ GD_TOKEN_SECRET=dev-only-secret
 
 # Override wrangler.jsonc vars locally if needed, e.g. the offline fake server:
 # AMBIENT_SERVER_URL=http://localhost:4100
+
+# Live voice agent (Eva). Defaults are in wrangler.jsonc vars; override per environment here.
+# VOICE_AGENT_BASE_URL=https://innov-dev.beta.injomo.com
+# VOICE_AGENT_WORKFLOW=pluginintegrationliveagent6ac91be94680e
+# Optional bearer token if the workflow trigger requires auth. SECRET.
+# VOICE_AGENT_TOKEN=

@@ -3,12 +3,15 @@
  *
  *   POST /v1/keys/validate   { apiKey }        SDK in the host page → session token for the caller's origin (MOCK key store)
  *   POST /v1/sessions/verify { sessionToken }  panel → who the token was issued to
+ *   POST /v1/voice/session   { sessionToken, agentPrompt, admissionId, patientName, isInpatient }
+ *                                              panel → starts an Eva voice session (proxies the workflow trigger, see voice.ts)
  *   GET  /health
  *   GET  /ambient  (WebSocket)                 panel → ambient relay (Durable Object, see relay.ts)
  */
 import type { Env } from './env';
 import { lookupKey } from './keys';
 import { issueToken, readToken } from './tokens';
+import { startVoiceSession } from './voice';
 
 export { AmbientRelay } from './relay';
 
@@ -103,6 +106,15 @@ export default {
       const claims = body ? await readToken(env.GD_TOKEN_SECRET, body.sessionToken) : null;
       if (!claims) return json(401, { valid: false, error: 'Session token is invalid or expired' }, req);
       return json(200, { valid: true, tenantId: claims.tenantId, origin: claims.origin, features: claims.features }, req);
+    }
+
+    if (route === 'POST /v1/voice/session') {
+      const body = await readJson(req);
+      const claims = body ? await readToken(env.GD_TOKEN_SECRET, body.sessionToken) : null;
+      if (!body || !claims) return json(401, { error: 'Session token is invalid or expired' }, req);
+      const result = await startVoiceSession(env, body);
+      console.log(`voice/session ${result.status} tenant=${claims.tenantId}`);
+      return json(result.status, result.body, req);
     }
 
     return json(404, { error: 'Not found' }, req);

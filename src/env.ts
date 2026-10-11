@@ -6,6 +6,12 @@ export interface Env {
   AMBIENT_SERVER_URL?: string;
   /** Ambient subscription key (secret: `wrangler secret put AMBIENT_SUBSCRIPTION_API_KEY`). */
   AMBIENT_SUBSCRIPTION_API_KEY?: string;
+  /** Live voice agent (Eva) origin, e.g. https://innov-dev.beta.injomo.com (var). */
+  VOICE_AGENT_BASE_URL?: string;
+  /** Workflow id called at {VOICE_AGENT_BASE_URL}/workflow.trigger/{id} (var). */
+  VOICE_AGENT_WORKFLOW?: string;
+  /** Optional bearer token for the workflow trigger (secret: `wrangler secret put VOICE_AGENT_TOKEN`). */
+  VOICE_AGENT_TOKEN?: string;
   /** Signs session tokens (secret: `wrangler secret put GD_TOKEN_SECRET`). */
   GD_TOKEN_SECRET?: string;
   /**
