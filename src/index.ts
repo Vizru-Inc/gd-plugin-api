@@ -9,14 +9,21 @@
  *                                              panel → every panel event, forwarded to the event receiver workflow (see events.ts)
  *   GET  /health
  *   GET  /ambient  (WebSocket)                 panel → ambient relay (Durable Object, see relay.ts)
+ *
+ * Plugin events (contract: @gooddoc/gd-contracts):
+ *   GET  /v1/stream?sid=<sessionId> (WebSocket) panel ⇄ its EventSession (Durable Object, see session.ts)
+ *   POST /v1/emitter/callback/{route}          Emitter → frames for a run (HMAC-signed)
  */
 import type { Env } from './env';
 import { lookupKey } from './keys';
 import { issueToken, readToken } from './tokens';
 import { eventsConfigured, forwardEvent } from './events';
 import { startVoiceSession } from './voice';
+import { readRoute, SESSION_ID_RE } from './emitter';
+import { CALLBACK_PATH_PREFIX, verifyRequest } from '@gooddoc/gd-contracts';
 
 export { AmbientRelay } from './relay';
+export { EventSession } from './session';
 
 const SESSION_TTL_MS = 60 * 60 * 1000;
 
@@ -79,6 +86,32 @@ export default {
 
     if (!env.GD_TOKEN_SECRET) {
       return json(500, { error: 'Server misconfigured: GD_TOKEN_SECRET is not set' }, req);
+    }
+
+    if (route === 'GET /v1/stream') {
+      // The panel names its session (sid = hash of its token, not secret); it proves the token in the first frame.
+      const sid = url.searchParams.get('sid') ?? '';
+      if (!SESSION_ID_RE.test(sid)) return json(400, { error: 'sid is required' }, req);
+      if (req.headers.get('Upgrade') !== 'websocket') return json(426, { error: 'Expected a WebSocket upgrade' }, req);
+      const forwarded = new Request('https://session/connect', req);
+      forwarded.headers.set('X-GD-Session-Id', sid);
+      forwarded.headers.set('X-GD-Public-Origin', url.origin);
+      return env.EVENT_SESSION.get(env.EVENT_SESSION.idFromName(sid)).fetch(forwarded);
+    }
+
+    if (req.method === 'POST' && url.pathname.startsWith(CALLBACK_PATH_PREFIX)) {
+      if (!env.EMITTER_CALLBACK_SECRET) return Response.json({ error: { code: 'emitter_not_configured' } }, { status: 503 });
+      const body = await req.text();
+      const verified = await verifyRequest(
+        [env.EMITTER_CALLBACK_SECRET, env.EMITTER_CALLBACK_SECRET_NEXT],
+        req.headers.get('X-GD-Timestamp'),
+        req.headers.get('X-GD-Signature'),
+        body,
+      );
+      if (!verified.ok) return Response.json({ error: { code: verified.code } }, { status: 401 });
+      const sid = await readRoute(env.GD_TOKEN_SECRET, url.pathname.slice(CALLBACK_PATH_PREFIX.length));
+      if (!sid) return Response.json({ error: { code: 'unknown_route' } }, { status: 404 });
+      return env.EVENT_SESSION.get(env.EVENT_SESSION.idFromName(sid)).fetch('https://session/callback', { method: 'POST', body });
     }
 
     if (route === 'POST /v1/keys/validate') {

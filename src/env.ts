@@ -2,6 +2,20 @@ export interface Env {
   /** Durable Object namespace: one relay instance per ambient session. */
   AMBIENT_RELAY: DurableObjectNamespace;
 
+  /** Durable Object namespace: one instance per panel session, owns the /v1/stream socket and its runs. */
+  EVENT_SESSION: DurableObjectNamespace;
+
+  /** Emitter base URL, e.g. https://emitter.example.com (var). Unset: plugin runs fail with emitter_not_configured. */
+  EMITTER_URL?: string;
+  /** Signs gd-api → Emitter dispatch calls (secret). */
+  EMITTER_DISPATCH_SECRET?: string;
+  /** Verifies Emitter → gd-api callbacks (secret). */
+  EMITTER_CALLBACK_SECRET?: string;
+  /** Next callback secret, accepted alongside the current one while rotating (secret, optional). */
+  EMITTER_CALLBACK_SECRET_NEXT?: string;
+  /** Public origin of this API for callback URLs, when it differs from the request's (var, optional). */
+  PUBLIC_BASE_URL?: string;
+
   /** Ambient AI server origin, e.g. https://roverv2-fastapi.vizru-ras.com (var). */
   AMBIENT_SERVER_URL?: string;
   /** Ambient subscription key (secret: `wrangler secret put AMBIENT_SUBSCRIPTION_API_KEY`). */
