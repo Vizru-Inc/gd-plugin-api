@@ -1,0 +1,37 @@
+meta {
+  name: 4. Progress line
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "v": 1,
+    "id": "{{$guid}}",
+    "runId": "{{runId}}",
+    "seq": {{seq}},
+    "type": "run.progress",
+    "ts": "{{$isoTimestamp}}",
+    "payload": {
+      "label": "Looking up the chart (sent from Postman)"
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Shows a spinner line until the next message or UI.
+}

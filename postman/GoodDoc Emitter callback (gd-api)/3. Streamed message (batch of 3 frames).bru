@@ -1,0 +1,65 @@
+meta {
+  name: 3. Streamed message (batch of 3 frames)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  [
+    {
+      "v": 1,
+      "id": "{{$guid}}",
+      "runId": "{{runId}}",
+      "seq": {{seq}},
+      "type": "message.delta",
+      "ts": "{{$isoTimestamp}}",
+      "payload": {
+        "messageId": "pm-stream-{{seq}}",
+        "text": "Streaming "
+      }
+    },
+    {
+      "v": 1,
+      "id": "{{$guid}}",
+      "runId": "{{runId}}",
+      "seq": {{seq1}},
+      "type": "message.delta",
+      "ts": "{{$isoTimestamp}}",
+      "payload": {
+        "messageId": "pm-stream-{{seq}}",
+        "text": "from Postman… "
+      }
+    },
+    {
+      "v": 1,
+      "id": "{{$guid}}",
+      "runId": "{{runId}}",
+      "seq": {{seq2}},
+      "type": "message.done",
+      "ts": "{{$isoTimestamp}}",
+      "payload": {
+        "messageId": "pm-stream-{{seq}}",
+        "text": "Streaming from Postman… done.",
+        "format": "markdown"
+      }
+    }
+  ]
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Three frames in one request: two deltas, then the final text.
+}

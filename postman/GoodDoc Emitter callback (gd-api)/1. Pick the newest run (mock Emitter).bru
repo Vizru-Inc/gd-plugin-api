@@ -1,0 +1,36 @@
+meta {
+  name: 1. Pick the newest run (mock Emitter)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{mockUrl}}/debug/runs
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  mockUrl: https://gd-plugin-api.vizru-aix.workers.dev
+}
+
+script:post-response {
+  // Picks the newest open run: sets {{runId}}, {{callbackUrl}} and {{seq}}.
+  const runs = (res.getBody().runs || []).filter((r) => !r.stopped);
+  test('there is an open run (open a plugin in the panel first)', () => expect(runs.length).to.be.above(0));
+  if (runs.length) {
+    const run = runs[0];
+    bru.setVar('runId', run.runId);
+    bru.setVar('callbackUrl', run.callbackUrl);
+    bru.setVar('seq', run.nextSeq);
+    console.log('Using run ' + run.runId + ' (' + run.plugin + '), next seq ' + run.nextSeq);
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Open a plugin in the panel first (Assistant is easiest: it stays open). This finds that run and sets runId, callbackUrl and seq.
+}

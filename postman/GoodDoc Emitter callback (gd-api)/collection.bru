@@ -1,0 +1,72 @@
+meta {
+  name: GoodDoc Emitter callback (gd-api)
+}
+
+auth {
+  mode: none
+}
+
+vars:pre-request {
+  mockUrl: http://localhost:4200
+  callbackSecret: dev-callback-secret
+  callbackUrl: 
+  runId: 
+  seq: 0
+}
+
+script:pre-request {
+  const hmacLib = require('crypto-js');
+  // Signs every POST the way the Emitter must (contract: X-GD-Timestamp + X-GD-Signature).
+  if (req.getMethod() === 'POST') {
+    const seq = Number(bru.getVar('seq') || 0);
+    bru.setVar('seq1', seq + 1);
+    bru.setVar('seq2', seq + 2);
+    bru.setVar('seq3', seq + 3);
+    // Resolve {{variables}} once, so the bytes we sign are exactly the bytes we send.
+    const body = bru.interpolate(req.getBody().raw);
+    req.getBody().update(body);
+    const ts = Math.floor(Date.now() / 1000).toString();
+    const secret = bru.getVar('callbackSecret');
+    const sig = hmacLib.HmacSHA256(ts + '.' + body, secret).toString(hmacLib.enc.Hex);
+    req.getHeaders().upsert({ key: 'Content-Type', value: 'application/json' });
+    req.getHeaders().upsert({ key: 'X-GD-Timestamp', value: ts });
+    req.getHeaders().upsert({ key: 'X-GD-Signature', value: 'sha256=' + sig });
+  }
+}
+
+script:post-response {
+  // Keeps {{seq}} in step with gd-api.
+  if (req.getMethod() === 'POST') {
+    let r = {};
+    try { r = res.getBody(); } catch (e) {}
+    const seq = Number(bru.getVar('seq') || 0);
+    if (res.getStatus() === 202) {
+      bru.setVar('seq', seq + (r.accepted || 0) + (r.duplicates || 0));
+    } else if (res.getStatus() === 200 && r.duplicate) {
+      bru.setVar('seq', seq + 1);
+    } else if (res.getStatus() === 409 && r.error && typeof r.error.lastSeq === 'number') {
+      bru.setVar('seq', r.error.lastSeq + 1);
+      console.log('seq was out of step; it is now ' + (r.error.lastSeq + 1) + '. Send the request again.');
+    }
+    if (res.getStatus() === 410) {
+      test('run is still open (410: it has ended; open a new run and send step 1 again)', () => expect(res.getStatus()).to.not.equal(410));
+    } else if (res.getStatus() === 401) {
+      test('signature accepted (401: check callbackSecret matches EMITTER_CALLBACK_SECRET)', () => expect(res.getStatus()).to.not.equal(401));
+    } else {
+      test('gd-api accepted the frame (202)', () => expect(res.getStatus()).to.be.oneOf([200, 202]));
+    }
+  }
+}
+
+docs {
+  Act as the Emitter: push frames into an open plugin run in the panel.
+  
+  1. Run `node dev.mjs` and open a plugin in the panel (Assistant stays open, so it's the easiest).
+  2. Send '1. Pick the newest run'. It sets runId, callbackUrl and seq.
+  3. Send any of the other requests. Each one is signed with callbackSecret and seq advances automatically.
+  
+  If you get 409 seq_gap, seq was out of step (e.g. the mock sent frames too); it is fixed automatically, so send again.
+  410 = the run has ended: open a new one and repeat step 2.
+  
+  For a real Emitter, take callback.url from gd-api's dispatch request instead of step 1, and use the real EMITTER_CALLBACK_SECRET.
+}

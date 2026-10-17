@@ -1,9 +1,9 @@
 /**
  * GoodDoc API (Cloudflare Worker).
  *
- *   POST /v1/keys/validate   { apiKey }        SDK in the host page → session token for the caller's origin (MOCK key store)
- *   POST /v1/sessions/verify { sessionToken }  panel → who the token was issued to
- *   POST /v1/voice/session   { sessionToken, agentPrompt, admissionId, patientName, isInpatient }
+ *   POST /v1/keys/validate   { apiKey, devMode? } SDK in the host page → session token for the caller's origin (MOCK key store)
+ *   POST /v1/sessions/verify { sessionToken }  panel → who the token was issued to + panel config (see panel-config.ts)
+ *   POST /v1/voice/session   { sessionToken, sessionContext, admissionId, patientName, isInpatient }
  *                                              panel → starts an Eva voice session (proxies the workflow trigger, see voice.ts)
  *   POST /v1/events          { sessionToken, event, payload }
  *                                              panel → every panel event, forwarded to the event receiver workflow (see events.ts)
@@ -13,14 +13,19 @@
  * Plugin events (contract: @gooddoc/gd-contracts):
  *   GET  /v1/stream?sid=<sessionId> (WebSocket) panel ⇄ its EventSession (Durable Object, see session.ts)
  *   POST /v1/emitter/callback/{route}          Emitter → frames for a run (HMAC-signed)
+ *
+ * Dev mode (session token with devMode, test keys only):
+ *   POST /v1/debug/push { sessionToken, entries, facts }  panel → its dev log, stored in its EventSession
+ *   GET  /v1/debug?sid=<sessionId>             debug page → everything for that session (no auth by design)
  */
 import type { Env } from './env';
 import { lookupKey } from './keys';
 import { issueToken, readToken } from './tokens';
 import { eventsConfigured, forwardEvent } from './events';
 import { startVoiceSession } from './voice';
+import { publicPanelConfig } from './panel-config';
 import { readRoute, SESSION_ID_RE } from './emitter';
-import { CALLBACK_PATH_PREFIX, verifyRequest } from '@gooddoc/gd-contracts';
+import { CALLBACK_PATH_PREFIX, sessionIdFor, verifyRequest } from '@gooddoc/gd-contracts';
 
 export { AmbientRelay } from './relay';
 export { EventSession } from './session';
@@ -99,6 +104,14 @@ export default {
       return env.EVENT_SESSION.get(env.EVENT_SESSION.idFromName(sid)).fetch(forwarded);
     }
 
+    if (route === 'GET /v1/debug') {
+      const sid = url.searchParams.get('sid') ?? '';
+      if (!SESSION_ID_RE.test(sid)) return json(400, { error: 'sid is required' }, req);
+      const snapshot = await env.EVENT_SESSION.get(env.EVENT_SESSION.idFromName(sid)).debugSnapshot();
+      if (!snapshot) return json(404, { error: 'No dev-mode session with this id' }, req);
+      return json(200, snapshot, req);
+    }
+
     if (req.method === 'POST' && url.pathname.startsWith(CALLBACK_PATH_PREFIX)) {
       if (!env.EMITTER_CALLBACK_SECRET) return Response.json({ error: { code: 'emitter_not_configured' } }, { status: 503 });
       const body = await req.text();
@@ -125,7 +138,9 @@ export default {
       }
       if (!key.isAllowed(origin)) return json(403, { valid: false, error: `Origin ${origin} is not allowed for this key` }, req);
       const exp = Date.now() + SESSION_TTL_MS;
-      const sessionToken = await issueToken(env.GD_TOKEN_SECRET, { tenantId: key.tenantId, origin, features: key.features, exp });
+      // Dev mode (internals shown in the panel) is only ever granted to test keys.
+      const devMode = body.devMode === true && String(body.apiKey).startsWith('gd_test_');
+      const sessionToken = await issueToken(env.GD_TOKEN_SECRET, { tenantId: key.tenantId, origin, features: key.features, exp, ...(devMode && { devMode }) });
       console.log(`validate 200 origin=${origin}`);
       return json(200, {
         valid: true,
@@ -134,6 +149,7 @@ export default {
         allowedOrigins: key.allowedOrigins,
         sessionToken,
         expiresAt: new Date(exp).toISOString(),
+        devMode,
       }, req);
     }
 
@@ -141,7 +157,27 @@ export default {
       const body = await readJson(req);
       const claims = body ? await readToken(env.GD_TOKEN_SECRET, body.sessionToken) : null;
       if (!claims) return json(401, { valid: false, error: 'Session token is invalid or expired' }, req);
-      return json(200, { valid: true, tenantId: claims.tenantId, origin: claims.origin, features: claims.features }, req);
+      return json(200, {
+        valid: true,
+        tenantId: claims.tenantId,
+        origin: claims.origin,
+        features: claims.features,
+        devMode: !!claims.devMode,
+        expiresAt: new Date(claims.exp).toISOString(),
+        config: publicPanelConfig(),
+      }, req);
+    }
+
+    if (route === 'POST /v1/debug/push') {
+      const body = await readJson(req);
+      const claims = body ? await readToken(env.GD_TOKEN_SECRET, body.sessionToken) : null;
+      if (!body || !claims) return json(401, { error: 'Session token is invalid or expired' }, req);
+      if (!claims.devMode) return json(403, { error: 'Dev mode is not enabled for this session' }, req);
+      const sid = await sessionIdFor(String(body.sessionToken));
+      const entries = Array.isArray(body.entries) ? body.entries.slice(-200) : [];
+      const facts = body.facts && typeof body.facts === 'object' ? (body.facts as Record<string, unknown>) : null;
+      const ok = await env.EVENT_SESSION.get(env.EVENT_SESSION.idFromName(sid)).debugPush(entries, facts);
+      return ok ? json(200, { ok: true, sid }, req) : json(409, { error: 'Session not connected yet' }, req);
     }
 
     if (route === 'POST /v1/events') {

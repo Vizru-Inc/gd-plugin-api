@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "GoodDoc Emitter callback (gd-api)",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,0 +1,99 @@
+meta {
+  name: 5. UI card (inline)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "v": 1,
+    "id": "{{$guid}}",
+    "runId": "{{runId}}",
+    "seq": {{seq}},
+    "type": "ui.render",
+    "ts": "{{$isoTimestamp}}",
+    "payload": {
+      "uiId": "pm-card-{{seq}}",
+      "surface": "inline",
+      "schema": 1,
+      "tree": {
+        "id": "card",
+        "type": "card",
+        "props": {
+          "title": "Sent from Postman",
+          "subtitle": "ui.render · surface inline",
+          "tone": "info"
+        },
+        "children": [
+          {
+            "id": "kv",
+            "type": "kv",
+            "props": {
+              "items": [
+                {
+                  "label": "Patient",
+                  "value": "Maya Patel"
+                },
+                {
+                  "label": "Next visit",
+                  "value": "24 Oct 2026"
+                }
+              ]
+            }
+          },
+          {
+            "id": "flags",
+            "type": "row",
+            "props": {
+              "gap": "sm"
+            },
+            "children": [
+              {
+                "id": "b1",
+                "type": "badge",
+                "props": {
+                  "text": "HbA1c high",
+                  "tone": "danger"
+                }
+              },
+              {
+                "id": "b2",
+                "type": "badge",
+                "props": {
+                  "text": "BP normal",
+                  "tone": "success"
+                }
+              }
+            ]
+          },
+          {
+            "id": "ok",
+            "type": "button",
+            "props": {
+              "label": "Acknowledge",
+              "actionId": "ack"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Described UI: a card with key-values, a badge row and a button (the button sends ui.action to the Emitter).
+}

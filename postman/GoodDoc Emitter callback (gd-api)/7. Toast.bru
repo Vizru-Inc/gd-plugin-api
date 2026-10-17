@@ -1,0 +1,46 @@
+meta {
+  name: 7. Toast
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "v": 1,
+    "id": "{{$guid}}",
+    "runId": "{{runId}}",
+    "seq": {{seq}},
+    "type": "ui.render",
+    "ts": "{{$isoTimestamp}}",
+    "payload": {
+      "uiId": "pm-toast-{{seq}}",
+      "surface": "toast",
+      "schema": 1,
+      "tree": {
+        "id": "t",
+        "type": "text",
+        "props": {
+          "text": "Hello from Postman"
+        }
+      }
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  A short notice in the panel.
+}

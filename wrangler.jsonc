@@ -1,15 +1,22 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "gd-api",
+  "name": "gd-plugin-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
 
   // One relay instance per ambient session (see src/relay.ts). SQLite-backed so it runs on the Free plan.
   "durable_objects": {
-    "bindings": [{ "name": "AMBIENT_RELAY", "class_name": "AmbientRelay" }]
+    "bindings": [
+      { "name": "AMBIENT_RELAY", "class_name": "AmbientRelay" },
+      // One per panel session: the /v1/stream socket, plugin runs, replay buffer (see src/session.ts).
+      { "name": "EVENT_SESSION", "class_name": "EventSession" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AmbientRelay"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["AmbientRelay"] },
+    { "tag": "v2", "new_sqlite_classes": ["EventSession"] }
+  ],
 
   // Non-secret settings. Secrets (AMBIENT_SUBSCRIPTION_API_KEY, GD_TOKEN_SECRET) are set with
   // `wrangler secret put`, or in .dev.vars for local development.
@@ -20,7 +27,12 @@
     "VOICE_AGENT_WORKFLOW": "pluginintegrationliveagent6ac91be94680e",
     // Every panel event is forwarded here as form fields: event, payload (JSON), domain
     "EVENTS_WORKFLOW": "marketplaceeventreciever6acb1c5507242",
+    // Emitter (AI + MCP + data) base URL: gd-api POSTs {EMITTER_URL}/v1/events. Empty = plugin runs are disabled.
+    // Secrets: EMITTER_DISPATCH_SECRET, EMITTER_CALLBACK_SECRET (wrangler secret put / .dev.vars).
+    "EMITTER_URL": "https://gooddoc-demo.vizru-ras.com/workflow.trigger/testwf6ad1be59e49a9",
+    "AMBIENT_SUBSCRIPTION_API_KEY": "9e7a84e079c3466ca71b4d329d576925ee19cc98389741689edef106a02c97b2",
+    "GD_TOKEN_SECRET": "demo-gd-test-secret",
     // Host-page origins allowed to use the mock gd_test_ keys. Add your vendors' / demo host's origins.
-    "ALLOWED_ORIGINS": "http://localhost:*,http://127.0.0.1:*"
+    "ALLOWED_ORIGINS": "http://localhost:*,http://127.0.0.1:*,https://demo-hms.vizru-aix.workers.dev"
   }
 }

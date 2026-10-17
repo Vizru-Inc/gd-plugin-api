@@ -69,6 +69,26 @@ interface SessionInfo {
   publicOrigin: string;
   context: Record<string, unknown>;
   locale: string | null;
+  /** Dev mode granted in the session token: keep a debug log (GET /v1/debug?sid=). */
+  devMode?: boolean;
+}
+
+/** One debug log line, from the panel (pushed) or from this object ('api'). */
+export interface DebugEntry {
+  at: number;
+  source: string;
+  dir: 'in' | 'out' | 'info';
+  event: string;
+  data?: unknown;
+}
+
+const DEBUG_MAX_ENTRIES = 500;
+const DEBUG_MAX_ENTRY_BYTES = 20_000;
+
+/** Keep log lines small: oversized data is replaced by a preview. */
+function clip(entry: DebugEntry): DebugEntry {
+  const raw = JSON.stringify(entry.data ?? null);
+  return raw.length <= DEBUG_MAX_ENTRY_BYTES ? entry : { ...entry, data: { truncated: true, bytes: raw.length, preview: raw.slice(0, 2000) } };
 }
 
 interface Attachment {
@@ -90,6 +110,8 @@ const now = () => Date.now();
 export class EventSession extends DurableObject<Env> {
   private runs = new Map<string, RunState>();
   private session: SessionInfo | null = null;
+  /** Dev mode only. Server-side lines and lines pushed by the panel, plus the panel's facts. */
+  private debug: { server: DebugEntry[]; panel: DebugEntry[]; facts: Record<string, unknown> } = { server: [], panel: [], facts: {} };
   private rate = { windowStart: 0, count: 0 };
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -98,6 +120,7 @@ export class EventSession extends DurableObject<Env> {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING_FRAME, PONG_FRAME));
     ctx.blockConcurrencyWhile(async () => {
       this.session = (await ctx.storage.get<SessionInfo>('session')) ?? null;
+      this.debug = (await ctx.storage.get<typeof this.debug>('debug')) ?? this.debug;
       for (const [, run] of await ctx.storage.list<RunState>({ prefix: 'run:' })) this.runs.set(run.runId, run);
     });
   }
@@ -214,6 +237,7 @@ export class EventSession extends DurableObject<Env> {
       publicOrigin: this.env.PUBLIC_BASE_URL?.replace(/\/$/, '') || att.publicOrigin,
       context: this.session?.context ?? {},
       locale: this.session?.locale ?? null,
+      devMode: !!claims.devMode,
     };
     await this.ctx.storage.put('session', this.session);
     this.send(ws, 'session.ready', {
@@ -221,6 +245,16 @@ export class EventSession extends DurableObject<Env> {
       serverTime: new Date().toISOString(),
       limits: { ...LIMITS },
       emitter: emitterConfigured(this.env),
+      // Dev mode only: internals for the panel's Dev view.
+      ...(claims.devMode && {
+        dev: {
+          durableObject: { class: 'EventSession', name: sessionId, id: this.ctx.id.toString() },
+          callbackUrl: `${this.session.publicOrigin}${CALLBACK_PATH_PREFIX}${await makeRoute(this.env.GD_TOKEN_SECRET!, sessionId)}`,
+          emitterUrl: this.env.EMITTER_URL ?? null,
+          tokenExpiresAt: new Date(claims.exp).toISOString(),
+          openRuns: this.openRuns().map((r) => ({ runId: r.runId, plugin: r.plugin, status: r.status, lastSeq: r.lastSeq })),
+        },
+      }),
     });
   }
 
@@ -304,6 +338,7 @@ export class EventSession extends DurableObject<Env> {
       context: s.context,
     };
     const result = await dispatch(this.env, request);
+    this.debugLog('out', `dispatch ${event.type}`, { runId: run.runId, plugin: request.event.plugin, emitterUrl: this.env.EMITTER_URL, callbackUrl: request.callback.url, result });
     if (result.ok || opts.final) return;
     console.warn(`dispatch run=${run.runId} type=${event.type} -> ${result.status} ${result.code}`);
     const current = this.runs.get(run.runId);
@@ -336,6 +371,7 @@ export class EventSession extends DurableObject<Env> {
     if (frames.length === 0 || frames.length > LIMITS.framesPerCallback) {
       return { status: 400, body: { error: { code: 'too_many_frames', message: `1 to ${LIMITS.framesPerCallback} frames per request` } } };
     }
+    this.debugLog('in', 'emitter callback', { frames: frames.map((f) => ({ type: (f as Envelope)?.type, runId: (f as Envelope)?.runId, seq: (f as Envelope)?.seq })) });
     let accepted = 0;
     let duplicates = 0;
     for (let i = 0; i < frames.length; i++) {
@@ -412,6 +448,7 @@ export class EventSession extends DurableObject<Env> {
 
   /** Record a frame as the run's next seq, buffer it for resume, and push it to the panel. */
   private async deliver(run: RunState, frame: Envelope) {
+    this.debugLog('info', `run ${frame.type}`, { runId: run.runId, plugin: run.plugin, seq: frame.seq, status: run.status });
     // In-memory first (before any await) so concurrent callbacks see the new seq.
     run.lastSeq = frame.seq!;
     run.gotFirst = true;
@@ -520,6 +557,46 @@ export class EventSession extends DurableObject<Env> {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  // ───────────── dev mode debug log (RPC from the Worker) ─────────────
+
+  private debugLog(dir: DebugEntry['dir'], event: string, data?: unknown) {
+    if (!this.session?.devMode) return;
+    this.debug.server = [...this.debug.server, clip({ at: Date.now(), source: 'api', dir, event, data })].slice(-DEBUG_MAX_ENTRIES);
+    void this.ctx.storage.put('debug', this.debug);
+  }
+
+  /** The panel's dev log lines and facts (POST /v1/debug/push). */
+  async debugPush(entries: DebugEntry[], facts: Record<string, unknown> | null): Promise<boolean> {
+    if (!this.session?.devMode) return false;
+    this.debug.panel = [...this.debug.panel, ...entries.map(clip)].slice(-DEBUG_MAX_ENTRIES);
+    if (facts) this.debug.facts = facts;
+    await this.ctx.storage.put('debug', this.debug);
+    return true;
+  }
+
+  /** Everything the debug page shows (GET /v1/debug?sid=). Null unless the session is in dev mode. */
+  async debugSnapshot() {
+    const s = this.session;
+    if (!s?.devMode) return null;
+    return {
+      sessionId: s.sessionId,
+      server: {
+        durableObject: { class: 'EventSession', name: s.sessionId, id: this.ctx.id.toString() },
+        tenantId: s.tenantId,
+        hostOrigin: s.origin,
+        callbackUrl: `${s.publicOrigin}${CALLBACK_PATH_PREFIX}${await makeRoute(this.env.GD_TOKEN_SECRET!, s.sessionId)}`,
+        emitterUrl: this.env.EMITTER_URL ?? null,
+        tokenExpiresAt: new Date(s.exp).toISOString(),
+        connectedSockets: this.ctx.getWebSockets().length,
+        locale: s.locale,
+      },
+      context: s.context,
+      runs: [...this.runs.values()],
+      facts: this.debug.facts,
+      entries: [...this.debug.server, ...this.debug.panel].sort((a, b) => a.at - b.at),
+    };
+  }
 
   private send(ws: WebSocket, type: string, payload: Record<string, unknown>, extra: { runId?: string } = {}) {
     try {

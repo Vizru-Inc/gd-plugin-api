@@ -1,0 +1,37 @@
+meta {
+  name: 8. Complete the run
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "v": 1,
+    "id": "{{$guid}}",
+    "runId": "{{runId}}",
+    "seq": {{seq}},
+    "type": "run.completed",
+    "ts": "{{$isoTimestamp}}",
+    "payload": {
+      "summary": "Completed from Postman"
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Final frame: the panel shows the summary. Later frames for this run get 410.
+}

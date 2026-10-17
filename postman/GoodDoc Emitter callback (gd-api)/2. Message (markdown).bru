@@ -1,0 +1,43 @@
+meta {
+  name: 2. Message (markdown)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "v": 1,
+    "id": "{{$guid}}",
+    "runId": "{{runId}}",
+    "seq": {{seq}},
+    "type": "message.done",
+    "ts": "{{$isoTimestamp}}",
+    "payload": {
+      "messageId": "pm-{{seq}}",
+      "text": "Hello from **Postman**.\n\n- signed with the callback secret\n- delivered by gd-api in seq order",
+      "format": "markdown"
+    }
+  }
+}
+
+vars:pre-request {
+  callbackUrl: https://gd-plugin-api.vizru-aix.workers.dev/v1/emitter/callback/T-QTBHy4-Ku_LTJdnOlOIaZxewbIn0t1.HfhyBWMxn0kO3U8phGIhPZ_CZSYpfdOx
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  A complete assistant message in one frame.
+}

@@ -10,8 +10,13 @@ GD_TOKEN_SECRET=dev-only-secret
 # AMBIENT_SERVER_URL=http://localhost:4100
 
 # Workflow server: live voice agent (Eva) + panel event receiver. Defaults are in wrangler.jsonc vars; override per environment here.
-# WORKFLOW_BASE_URL=https://innov-dev.beta.injomo.com
+ WORKFLOW_BASE_URL=https://innov-dev.beta.injomo.com
 # VOICE_AGENT_WORKFLOW=pluginintegrationliveagent6ac91be94680e
-# EVENTS_WORKFLOW=marketplaceeventreciever6acb1c5507242
+ EVENTS_WORKFLOW=marketplaceeventreciever6acb1c5507242
 # Optional bearer token if the workflow trigger requires auth. SECRET.
 # VOICE_AGENT_TOKEN=
+
+# Emitter (plugin runs). Local mock: `pnpm mock-emitter` serves http://localhost:4200 with these same secrets.
+# EMITTER_URL=http://localhost:4200
+EMITTER_DISPATCH_SECRET=dev-dispatch-secret
+EMITTER_CALLBACK_SECRET=dev-callback-secret

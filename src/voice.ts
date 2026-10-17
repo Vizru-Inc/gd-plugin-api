@@ -7,6 +7,7 @@
  * WebSocket (WebSockets aren't subject to CORS, so that part stays direct).
  */
 import type { Env } from './env';
+import { evaPrompt, PANEL_CONFIG } from './panel-config';
 
 export interface VoiceSession {
   session_id: string;
@@ -21,6 +22,7 @@ export async function startVoiceSession(
   env: Env,
   body: Record<string, unknown>,
 ): Promise<{ status: number; body: VoiceSession | { error: string } }> {
+  if (!PANEL_CONFIG.features.voice) return { status: 403, body: { error: 'Voice chat is turned off' } };
   const base = env.WORKFLOW_BASE_URL?.replace(/\/$/, '');
   const workflow = env.VOICE_AGENT_WORKFLOW;
   if (!base || !workflow) {
@@ -39,7 +41,8 @@ export async function startVoiceSession(
       method: 'POST',
       headers,
       body: new URLSearchParams({
-        agentPrompt: str(body.agentPrompt, 50_000),
+        // The base prompt comes from panel-config; the panel only supplies the session context.
+        agentPrompt: [evaPrompt(), str(body.sessionContext, 40_000)].filter(Boolean).join('\n\n'),
         admissionId: str(body.admissionId),
         patientName: str(body.patientName),
         isInpatient: str(body.isInpatient ?? 'false'),

@@ -8,7 +8,10 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    // Local development: use the sibling gd-contracts checkout until @gooddoc/gd-contracts is installed from npm.
+    "baseUrl": ".",
+    "paths": { "@gooddoc/gd-contracts": ["../gd-contracts/src/index.ts"] }
   },
   "include": ["src"]
 }

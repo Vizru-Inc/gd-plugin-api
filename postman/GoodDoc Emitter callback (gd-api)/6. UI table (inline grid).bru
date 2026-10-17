@@ -1,0 +1,87 @@
+meta {
+  name: 6. UI table (inline grid)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "v": 1,
+    "id": "{{$guid}}",
+    "runId": "{{runId}}",
+    "seq": {{seq}},
+    "type": "ui.render",
+    "ts": "{{$isoTimestamp}}",
+    "payload": {
+      "uiId": "pm-grid-{{seq}}",
+      "surface": "inline",
+      "schema": 1,
+      "tree": {
+        "id": "grid",
+        "type": "table",
+        "props": {
+          "caption": "Appointments (from Postman)",
+          "columns": [
+            {
+              "key": "date",
+              "label": "Date",
+              "format": "date"
+            },
+            {
+              "key": "type",
+              "label": "Type"
+            },
+            {
+              "key": "status",
+              "label": "Status",
+              "format": "badge",
+              "tones": {
+                "Booked": "info",
+                "Done": "success",
+                "Missed": "danger"
+              }
+            }
+          ],
+          "rows": [
+            {
+              "id": "a1",
+              "date": "2026-10-24",
+              "type": "Recall",
+              "status": "Booked"
+            },
+            {
+              "id": "a2",
+              "date": "2026-09-18",
+              "type": "Filling",
+              "status": "Done"
+            },
+            {
+              "id": "a3",
+              "date": "2026-06-12",
+              "type": "Cleaning",
+              "status": "Missed"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  A sortable grid.
+}

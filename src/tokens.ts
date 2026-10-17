@@ -7,6 +7,8 @@ export interface SessionClaims {
   origin: string;
   features: string[];
   exp: number;
+  /** Dev mode granted at key validation (test keys only). */
+  devMode?: boolean;
 }
 
 const enc = new TextEncoder();

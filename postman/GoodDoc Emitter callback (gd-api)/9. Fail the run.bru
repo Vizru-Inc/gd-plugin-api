@@ -1,0 +1,39 @@
+meta {
+  name: 9. Fail the run
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{callbackUrl}}
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "v": 1,
+    "id": "{{$guid}}",
+    "runId": "{{runId}}",
+    "seq": {{seq}},
+    "type": "run.error",
+    "ts": "{{$isoTimestamp}}",
+    "payload": {
+      "code": "postman_test",
+      "message": "This error was sent from Postman.",
+      "retryable": true
+    }
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Final frame: the panel shows the error card.
+}

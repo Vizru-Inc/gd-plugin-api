@@ -3,7 +3,7 @@ export interface Env {
   AMBIENT_RELAY: DurableObjectNamespace;
 
   /** Durable Object namespace: one instance per panel session, owns the /v1/stream socket and its runs. */
-  EVENT_SESSION: DurableObjectNamespace;
+  EVENT_SESSION: DurableObjectNamespace<import('./session').EventSession>;
 
   /** Emitter base URL, e.g. https://emitter.example.com (var). Unset: plugin runs fail with emitter_not_configured. */
   EMITTER_URL?: string;

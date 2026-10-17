@@ -7,7 +7,9 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "tail": "wrangler tail",
-    "fake-ambient": "node fake-ambient-server.mjs"
+    "fake-ambient": "node fake-ambient-server.mjs",
+    "mock-emitter": "node mock-emitter.mjs",
+    "test:events": "node --test test/events.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261009.1",
